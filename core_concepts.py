@@ -112,6 +112,14 @@ def demo_schema_inspection():
 def new_way():
     model = init_chat_model("gpt-40-mini", temperature=0.7, max_tokens=1500)
 
+    model2 = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0.7,
+        max_completion_tokens=1500,
+        timeout=30,
+        max_retries=3,
+    )
+
     print(model)
 
 
