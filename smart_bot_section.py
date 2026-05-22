@@ -1,4 +1,3 @@
-from distro import name
 from typing import List
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
