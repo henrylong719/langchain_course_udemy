@@ -5,9 +5,8 @@ Complete retrieval-augmented generation implementation
 
 from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel
+from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.chat_models import init_chat_model
 
 from langchain_chroma import Chroma
@@ -20,6 +19,7 @@ import tempfile
 
 load_dotenv()
 embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
+llm = init_chat_model(model="gpt-4o-mini", temperature=0)
 
 # Sample knowledge base
 KNOWLEDGE_BASE = """# LangChain is a framework for developing applications powered by language models. It was created by Harrison Chase in October 2022.
@@ -127,5 +127,134 @@ def demo_basic_rag():
         print(f"A: {answer}\n")
 
 
+def demo_rag_with_sources():
+
+    vectorstore = create_kb()
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+
+    prompt = ChatPromptTemplate.from_template(
+        """
+        Answer the question based on the context below. Include which sources you used.
+        
+        Context:
+        {context}
+        
+        Question: {question}
+        
+        Answer (include sources):"""
+    )
+
+    def format_docs_with_sources(docs):
+        formatted = []
+        for i, doc in enumerate(docs):
+            source = doc.metadata.get("source", "unknown")
+            formatted.append(f"[{i + 1}] {source}:\n{doc.page_content}")
+        return "\n\n".join(formatted)
+
+    rag_chain = (
+        {
+            "context": retriever | format_docs_with_sources,
+            "question": RunnablePassthrough(),
+        }
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+
+    print("RAG with Sources:\n")
+    answer = rag_chain.invoke("What are the core components of LangChain?")
+    print("Q: What are the core components?\n")
+    print(f"A: {answer}")
+
+
+def demo_rag_with_fallback():
+
+    vectorstore = create_kb()
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
+
+    prompt = ChatPromptTemplate.from_template("""
+                                              Answer the question based ONLY on the following context.
+                                              If the answer is not in the context, respond with: "I don't have information about that in my knowledge base."
+                                              
+                                              Context:
+                                              {context}
+                                              
+                                              Question: {question}
+                                              
+                                              Answer:
+                                              """)
+
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
+
+    rag_chain = (
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+
+    print("RAG with Fallback:\n")
+
+    questions = [
+        "What is the pricing for LangSmith?",
+        "What is the stock price of OpenAI?",
+        "How do I deploy LangChain to AWS?",
+    ]
+
+    for q in questions:
+        answer = rag_chain.invoke(q)
+        print(f"Q: {q}")
+        print(f"A: {answer}\n")
+
+
+def demo_structured_rag():
+    """RAG with structured output."""
+
+    vectorstore = create_kb()
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+
+    class RAGResponse(BaseModel):
+        """Structured RAG response."""
+
+        answer: str = Field(description="The answer to the question")
+        confidence: str = Field(description="high, medium, or low")
+        sources_used: List[str] = Field(description="List of sources referenced")
+        follow_up: str = Field(description="Suggested follow-up question")
+
+    structured_llm = llm.with_structured_output(RAGResponse)
+
+    prompt = ChatPromptTemplate.from_template(
+        """
+Based on the context below, answer the question.
+
+Context:
+{context}
+
+Question: {question}
+
+Provide a structured response."""
+    )
+
+    def format_docs(docs):
+        return "\n\n".join(
+            f"[{doc.metadata.get('source', 'unknown')}]: {doc.page_content}"
+            for doc in docs
+        )
+
+    rag_chain = (
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        | prompt
+        | structured_llm
+    )
+    print("Structured RAG Demo:\n")
+    result = rag_chain.invoke("What is LangGraph?")
+
+    print(f"Answer: {result.answer}")
+    print(f"Confidence: {result.confidence}")
+    print(f"Sources: {result.sources_used}")
+    print(f"Follow-up: {result.follow_up}")
+
+
 if __name__ == "__main__":
-    demo_basic_rag()
+    demo_structured_rag()

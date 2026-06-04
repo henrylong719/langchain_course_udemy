@@ -24,31 +24,7 @@ prompt = ChatPromptTemplate.from_template("wire a short poem about {topic}")
 
 llm = init_chat_model(model="gpt-4o-mini", temperature=0)
 
-chain = prompt | llm | parser
-
-response = chain.invoke({"topic": "nature"})
-
-print(response)
-
-print(type(response))
-
-
-# JsonOutputParser example
 from langchain_core.output_parsers import JsonOutputParser
-
-parser = JsonOutputParser()
-
-prompt = ChatPromptTemplate.from_template(
-    "Return a JSON object with 'name' and 'age' for: {description}"
-)
-
-chain = prompt | llm | parser
-
-result = chain.invoke({"description": "A 31-year-old developer named Alex"})
-
-print(result)
-
-# PydanticOutputParser example
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
@@ -80,8 +56,36 @@ class MovieReview(BaseModel):
 
 
 # Bind the schema to the model
-structured_model = llm.with_structured_output(MovieReview)
+def demo_output_parsers():
+    chain = prompt | llm | parser
 
-result = structured_model.invoke("Review: Inception is a mind-binding thriller. 9/10")
+    response = chain.invoke({"topic": "nature"})
 
-print(result)
+    print(response)
+
+    print(type(response))
+
+    # JsonOutputParser example
+    json_parser = JsonOutputParser()
+
+    json_prompt = ChatPromptTemplate.from_template(
+        "Return a JSON object with 'name' and 'age' for: {description}"
+    )
+
+    json_chain = json_prompt | llm | json_parser
+
+    result = json_chain.invoke({"description": "A 31-year-old developer named Alex"})
+
+    print(result)
+
+    structured_model = llm.with_structured_output(MovieReview)
+
+    movie_result = structured_model.invoke(
+        "Review: Inception is a mind-binding thriller. 9/10"
+    )
+
+    print(movie_result)
+
+
+if __name__ == "__main__":
+    demo_output_parsers()
