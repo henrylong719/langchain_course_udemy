@@ -12,3 +12,6 @@ wheels/
 chroma_db
 
 .env
+
+
+/graph.png
