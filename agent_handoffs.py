@@ -3,10 +3,6 @@ Agent Handoffs in LangGraph
 Passing control and context between agents
 """
 
-import sys
-
-from sqlalchemy import TypeDecorator
-
 from langgraph.graph import StateGraph, START, END
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
@@ -85,9 +81,9 @@ def create_customer_service_system():
     def sales_agent(state: HandoffState) -> dict:
         """Sales specialist."""
         system = f"""You are a sales specialist. Context from triage: {state.get("context_summary", "None")}
-        
-        Help the customer with product questions and purchases.
-        Be helpful and informative, not pushy."""
+
+            Help the customer with product questions and purchases.
+            Be helpful and informative, not pushy."""
 
         response = llm.invoke([SystemMessage(content=system), *state["messages"]])
 
@@ -124,7 +120,7 @@ def create_customer_service_system():
             "current_agent": "billing_complete",
         }
 
-    def route_from_triage(state: HandoffDecision) -> str:
+    def route_from_triage(state: HandoffState) -> str:
         agent = state["current_agent"]
         if agent in ["sales", "support", "billing"]:
             return agent
@@ -179,7 +175,7 @@ def demo_handoffs():
 
         for msg in result["messages"]:
             if isinstance(msg, AIMessage):
-                print(f" {msg.content[:150]}...")
+                print(f"  {msg.content[:150]}...")
 
         print("-" * 50)
 
