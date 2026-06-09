@@ -58,7 +58,7 @@ def create_supervisor_system():
 
         decision = supervisor_llm.invoke(messages)
 
-        if decision == "FINISH":
+        if decision.next == "FINISH":
             return {"next_agent": "FINISH", "task_complete": True}
 
         return {
@@ -197,6 +197,32 @@ def demo_supervisor():
     print(f"\n\nFinal Response:\n{result['final_response']}")
 
 
+def demo_supervisor_trace():
+    """Show supervisor decision-making."""
+
+    agent = create_supervisor_system()
+
+    print("\nSupervisor Decision Trace:\n")
+
+    result = agent.invoke(
+        {
+            "messages": [
+                HumanMessage(
+                    content="Create a marketing tagline for a new coffee brand"
+                )
+            ],
+            "next_agent": "",
+            "task_complete": False,
+            "final_response": "",
+        }
+    )
+
+    print("Routing decisions:")
+    for msg in result["messages"]:
+        if isinstance(msg, AIMessage) and "[Supervisor]" in msg.content:
+            print(f"  → {msg.content}")
+
+
 if __name__ == "__main__":
-    demo_supervisor()
-    # demo_supervisor_trace()
+    # demo_supervisor()
+    demo_supervisor_trace()
